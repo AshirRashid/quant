@@ -138,29 +138,38 @@ class QuantConv2d(nn.Module):
 
     def _quantization(self):
         # activation quantization
-        table_q = self.act_quant._gen_table()
-        self.act_quant.register_buffer('table_q', table_q)
+        # table_q = self.act_quant._gen_table()
+        # self.act_quant.register_buffer('table_q', table_q)
 
         # kernel quantization
-        table_q = self.kernel_quant._gen_table()
-        self.kernel_quant.register_buffer('table_q', table_q)
-        kernel_q = self.kernel_quant(self.weight) if self.w_bits < 32 else self.weight
+        # table_q = self.kernel_quant._gen_table()
+        # self.kernel_quant.register_buffer('table_q', table_q)
+        # kernel_q = self.kernel_quant(self.weight) if self.w_bits < 32 else self.weight
+        # self.register_buffer('kernel_q', kernel_q)
+        from .biscaled import biscaled_quantized_weights
+        kernel_q, self.biscaled_lookup_table = biscaled_quantized_weights(self.w_bits, self.weight)
         self.register_buffer('kernel_q', kernel_q)
 
     def forward(self, x):
-        if self.training:
-            x_q = self.act_quant(x) if self.a_bits < 32 else x
-            kernel_q = self.kernel_quant(self.weight) if self.w_bits < 32 else self.weight
+        # TODO: Biscaled Lookup
+        # out_q = F.conv2d(x, self.weight, self.bias, stride=self.stride, padding=self.padding)
+        out_q = F.conv2d(x, self.kernel_q, self.bias, stride=self.stride, padding=self.padding)
 
-            out_q = F.conv2d(x_q, kernel_q, self.bias, stride=self.stride, padding=self.padding)
+        return out_q
 
-            return out_q
-        else:
-            x_q = self.act_quant(x) if self.a_bits < 32 else x
+        # if self.training:
+        #     x_q = self.act_quant(x) if self.a_bits < 32 else x
+        #     kernel_q = self.kernel_quant(self.weight) if self.w_bits < 32 else self.weight
 
-            out_q = F.conv2d(x_q, self.kernel_q, self.bias, stride=self.stride, padding=self.padding)
+        #     out_q = F.conv2d(x_q, kernel_q, self.bias, stride=self.stride, padding=self.padding)
 
-            return out_q
+        #     return out_q
+        # else:
+        #     x_q = self.act_quant(x) if self.a_bits < 32 else x
+
+        #     out_q = F.conv2d(x_q, self.kernel_q, self.bias, stride=self.stride, padding=self.padding)
+
+        #     return out_q
 
 
 class first_conv(nn.Conv2d):

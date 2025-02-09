@@ -49,7 +49,9 @@ def main():
         criterion = nn.CrossEntropyLoss().cuda()
 
         # load pre-trained model.
-        ckpt = torch.load('result/'+str(args.arch) + '_w' + str(args.w_bits) + '_a' + str(args.a_bits)+'/best.pth')['state_dict']
+        # print('result/'+str(args.arch) + '_w' + str(args.w_bits) + '_a' + str(args.a_bits)+'/best.pth')
+        print("LOADING FULL ACCURACY MODEL")
+        ckpt = torch.load("/home/ar7789/LLT/CIFAR10/result/resnet20_w32_a32/best.pth")['state_dict']
         model.load_state_dict(ckpt, strict=False)
 
         cudnn.benchmark = True

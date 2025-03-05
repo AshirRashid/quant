@@ -133,8 +133,10 @@ class QuantConv2d(nn.Module):
         else:
             self.bias = None
 
-        self.act_quant = quant_lookup(self.granu, a_bits, True) if self.a_bits < 32 else None
-        self.kernel_quant = quant_lookup(self.granu, w_bits, False) if self.w_bits < 32 else None
+        # self.act_quant = quant_lookup(self.granu, a_bits, True) if self.a_bits < 32 else None
+        # self.kernel_quant = quant_lookup(self.granu, w_bits, False) if self.w_bits < 32 else None
+        self.kernel_q = nn.Parameter(torch.zeros(self.weight.size()))
+
 
     def _quantization(self):
         # activation quantization
@@ -146,15 +148,20 @@ class QuantConv2d(nn.Module):
         # self.kernel_quant.register_buffer('table_q', table_q)
         # kernel_q = self.kernel_quant(self.weight) if self.w_bits < 32 else self.weight
         # self.register_buffer('kernel_q', kernel_q)
-        from .biscaled import biscaled_quantized_weights
-        kernel_q, self.biscaled_lookup_table = biscaled_quantized_weights(self.w_bits, self.weight)
-        self.register_buffer('kernel_q', kernel_q)
+        from .quant_format_manager import get_current_q_function
+
+        self.kernel_tensor, self.lookup_table = get_current_q_function(self)(self.w_bits, self.weight)
+        self.kernel_q = nn.Parameter(self.kernel_tensor.detach())
 
     def forward(self, x):
-        # TODO: Biscaled Lookup
         # out_q = F.conv2d(x, self.weight, self.bias, stride=self.stride, padding=self.padding)
-        out_q = F.conv2d(x, self.kernel_q, self.bias, stride=self.stride, padding=self.padding)
-
+        if hasattr(self, "kernel_q"):
+            out_q = F.conv2d(x, self.kernel_q, self.bias, stride=self.stride, padding=self.padding)
+            # out_q = F.conv2d(x, self.kernel_tensor, self.bias, stride=self.stride, padding=self.padding)
+        else:
+            raise ValueError("KERNEL Q")
+            out_q = F.conv2d(x, self.weight, self.bias, stride=self.stride, padding=self.padding)
+        # return STE.apply(x, out_q)
         return out_q
 
         # if self.training:
